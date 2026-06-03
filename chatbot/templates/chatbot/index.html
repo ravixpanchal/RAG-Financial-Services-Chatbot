@@ -1,0 +1,480 @@
+{% load static %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>BharatGen FinanceParam Chatbot</title>
+    <link rel="icon" type="image/x-icon" href="{% static 'favicon.ico' %}">
+    
+    <!-- Local CSS -->
+    <link rel="stylesheet" href="{% static 'chatbot/css/bootstrap.min.css' %}">
+    <link rel="stylesheet" href="{% static 'chatbot/css/outfit.css' %}">
+    <link rel="stylesheet" href="{% static 'chatbot/css/all.min.css' %}">
+    
+    <style>
+        :root {
+            --primary: #6366f1;
+            --secondary: #a855f7;
+            --bg-dark: #0f172a;
+            --glass: rgba(255, 255, 255, 0.05);
+            --glass-border: rgba(255, 255, 255, 0.1);
+            --text-light: #f8fafc;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-light);
+            font-family: 'Outfit', sans-serif;
+            height: 100vh;
+            margin: 0;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .background-blur {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: linear-gradient(135deg, #0f172a 0%, #1e1b4b 100%);
+            z-index: -1;
+        }
+
+        .glass-panel {
+            background: var(--glass);
+            backdrop-filter: blur(12px);
+            border: 1px solid var(--glass-border);
+            border-radius: 20px;
+        }
+
+        header {
+            padding: 1rem;
+            border-bottom: 1px solid var(--glass-border);
+            flex-shrink: 0;
+        }
+
+        .chat-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            padding: 1rem;
+            max-width: 1200px;
+            margin: 0 auto;
+            width: 100%;
+        }
+
+        #setup-area {
+            transition: all 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+            max-height: 1000px;
+            margin-bottom: 1rem;
+        }
+
+        #setup-area.collapsed {
+            max-height: 0;
+            margin-bottom: 0;
+            opacity: 0;
+            pointer-events: none;
+            padding-top: 0;
+            padding-bottom: 0;
+        }
+
+        #chat-messages {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            padding-right: 5px;
+            scrollbar-width: thin;
+            scrollbar-color: var(--glass-border) transparent;
+        }
+
+        .message {
+            max-width: 85%;
+            padding: 12px 18px;
+            border-radius: 15px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+            animation: slideIn 0.3s ease-out;
+        }
+
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .user-message {
+            align-self: flex-end;
+            background: var(--primary);
+            color: white;
+            border-bottom-right-radius: 4px;
+        }
+
+        .bot-message {
+            align-self: flex-start;
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-bottom-left-radius: 4px;
+        }
+
+        .message-thinking {
+            align-self: flex-start;
+            color: #94a3b8;
+            font-style: italic;
+        }
+
+        .input-area {
+            padding: 1rem 0;
+            flex-shrink: 0;
+        }
+
+        .input-wrapper {
+            background: var(--glass);
+            border: 1px solid var(--glass-border);
+            border-radius: 50px;
+            padding: 5px 15px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .input-wrapper input[type="text"] {
+            background: transparent;
+            border: none;
+            color: white;
+            flex: 1;
+            padding: 10px;
+            outline: none;
+        }
+
+        .setup-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--glass-border);
+            border-radius: 15px;
+            padding: 15px;
+        }
+
+        .upload-zone {
+            border: 2px dashed rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .upload-zone:hover {
+            border-color: var(--primary);
+            background: rgba(99, 102, 241, 0.05);
+        }
+
+        #system-context {
+            background: rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            border-radius: 10px;
+            font-size: 0.9rem;
+        }
+
+        .file-item {
+            background: rgba(255, 255, 255, 0.05);
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 0.8rem;
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            margin: 2px;
+        }
+
+        /* Mobile Adjustments */
+        @media (max-width: 768px) {
+            .setup-grid {
+                grid-template-columns: 1fr;
+            }
+            .message {
+                max-width: 95%;
+            }
+            .chat-container {
+                padding: 0.5rem;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="background-blur"></div>
+
+    <header class="container-fluid">
+        <div class="row align-items-center">
+            <div class="col-auto">
+                <img src="{% static 'favicon.ico' %}" alt="Logo" style="width: 40px; height: 40px; border-radius: 8px;">
+            </div>
+            <div class="col">
+                <h1 class="h4 mb-0">BharatGen FinanceParam Chatbot</h1>
+                <p class="small text-secondary mb-0">Institutional Grade Financial Guidance</p>
+            </div>
+            <div class="col-auto">
+                <button class="btn btn-outline-light btn-sm" onclick="clearChat()">
+                    <i class="fas fa-redo-alt"></i> <span class="d-none d-md-inline">New Chat</span>
+                </button>
+            </div>
+        </div>
+    </header>
+
+    <main class="chat-container">
+        <!-- Configuration Section -->
+        <div id="setup-area" class="setup-card mb-3">
+            <div class="row g-3">
+                <div class="col-md-7">
+                    <label class="form-label small fw-bold text-primary"><i class="fas fa-scroll"></i> Custom System Context</label>
+                    <textarea id="system-context" class="form-control" rows="4" placeholder="Define the AI's personality...">You are an advanced financial analysis AI specializing in equity research, corporate finance, and valuation. 
+
+Perform a comprehensive analysis using provided financial, operational, and market data. Generate an institutional-grade report for investors and analysts.
+
+ANALYSIS REQUIREMENTS:
+1. Executive Summary: Performance assessment, strengths, weaknesses, risks, and investment outlook.
+2. Revenue Analysis: Growth trends, segment contribution, and core drivers.
+3. Profitability Analysis: Margin trends (Gross, EBITDA, Net) and ROE/ROIC.
+4. Cash Flow Analysis: Quality of earnings, FCF generation, and liquidity.
+5. Valuation Analysis: Multiples (P/E, EV/EBITDA) and relative valuation vs peers.
+
+STYLE:
+- Professional institutional tone.
+- Data-driven and analytical.
+- Highlight anomalies and red flags.
+- Distinguish facts from assumptions.
+
+If data is missing, mention limitations. Do not hallucinate financial figures.</textarea>
+                </div>
+                <div class="col-md-5">
+                    <label class="form-label small fw-bold text-primary"><i class="fas fa-file-upload"></i> Knowledge Base</label>
+                    <div class="upload-zone" id="drop-zone">
+                        <i class="fas fa-cloud-upload-alt fa-2x mb-2 text-primary"></i>
+                        <p class="small mb-0">Drop files or click to browse</p>
+                        <input type="file" id="file-input-setup" multiple hidden accept=".pdf,.docx,.xlsx,.xls,.txt">
+                    </div>
+                    <div id="file-list" class="mt-2"></div>
+                </div>
+            </div>
+            <div class="text-center mt-3">
+                <button class="btn btn-primary btn-sm px-4 rounded-pill" id="start-chat-btn">
+                    <i class="fas fa-play"></i> Let's Begin
+                </button>
+            </div>
+        </div>
+
+        <!-- Chat Area -->
+        <div id="chat-messages">
+            <div class="message bot-message">
+                Hello! I am BharatGen FinanceParam Chatbot. I can assist you with taxation, banking, and investment queries in India. How can I help you today?
+            </div>
+        </div>
+
+        <!-- Input Area -->
+        <div class="input-area">
+            <div class="input-wrapper">
+                <button class="btn text-secondary p-1" id="attach-btn" title="Upload">
+                    <i class="fas fa-paperclip"></i>
+                </button>
+                <input type="file" id="file-input-main" hidden multiple accept=".pdf,.docx,.xlsx,.xls,.txt">
+                
+                <input type="text" id="user-input" placeholder="Ask a financial question..." autocomplete="off">
+                
+                <button class="btn text-secondary p-1 d-none d-md-block" id="mic-btn">
+                    <i class="fas fa-microphone"></i>
+                </button>
+                
+                <button class="btn btn-primary rounded-circle" id="send-btn" style="width: 40px; height: 40px; display: flex; align-items: center; justify-content: center;">
+                    <i class="fas fa-paper-plane"></i>
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Scripts -->
+    <script src="{% static 'chatbot/js/jquery.min.js' %}"></script>
+    <script src="{% static 'chatbot/js/bootstrap.bundle.min.js' %}"></script>
+    
+    <script>
+        const chatMessages = $('#chat-messages');
+        const userInput = $('#user-input');
+        const sendBtn = $('#send-btn');
+        const setupArea = $('#setup-area');
+        const systemContext = $('#system-context');
+        const fileList = $('#file-list');
+        const startChatBtn = $('#start-chat-btn');
+        const attachBtn = $('#attach-btn');
+        const fileInputSetup = $('#file-input-setup');
+        const fileInputMain = $('#file-input-main');
+        const dropZone = $('#drop-zone');
+
+        let isSetupCollapsed = false;
+
+        function getCookie(name) {
+            let cookieValue = null;
+            if (document.cookie && document.cookie !== '') {
+                const cookies = document.cookie.split(';');
+                for (let i = 0; i < cookies.length; i++) {
+                    const cookie = cookies[i].trim();
+                    if (cookie.substring(0, name.length + 1) === (name + '=')) {
+                        cookieValue = decodeURIComponent(cookie.substring(name.length + 1));
+                        break;
+                    }
+                }
+            }
+            return cookieValue;
+        }
+
+        function appendMessage(role, text, id=null) {
+            let msgHtml = `<div class="message ${role}-message">
+                <div class="content">${text}</div>`;
+            
+            if (role === 'bot' && id) {
+                msgHtml += `
+                    <div class="mt-2 d-flex gap-3 small text-secondary">
+                        <i class="far fa-thumbs-up cursor-pointer" onclick="rateMessage(${id}, 1, this)"></i>
+                        <i class="far fa-thumbs-down cursor-pointer" onclick="rateMessage(${id}, -1, this)"></i>
+                    </div>
+                `;
+            }
+            msgHtml += `</div>`;
+            chatMessages.append(msgHtml);
+            chatMessages.animate({ scrollTop: chatMessages[0].scrollHeight }, 500);
+        }
+
+        function showThinking() {
+            const id = 'thinking-' + Date.now();
+            chatMessages.append(`<div class="message message-thinking" id="${id}"><div class="spinner-border spinner-border-sm text-primary me-2"></div> BharatGen is analyzing...</div>`);
+            chatMessages.animate({ scrollTop: chatMessages[0].scrollHeight }, 500);
+            return id;
+        }
+
+        function collapseSetup() {
+            if (!isSetupCollapsed) {
+                setupArea.addClass('collapsed');
+                isSetupCollapsed = true;
+            }
+        }
+
+        async function sendMessage() {
+            const message = userInput.val().trim();
+            if (!message) return;
+
+            collapseSetup();
+            appendMessage('user', message);
+            userInput.val('');
+            const thinkingId = showThinking();
+            sendBtn.prop('disabled', true);
+
+            try {
+                const response = await fetch('/api/chat/', {
+                    method: 'POST',
+                    headers: { 
+                        'Content-Type': 'application/json',
+                        'X-CSRFToken': getCookie('csrftoken')
+                    },
+                    body: JSON.stringify({ 
+                        message: message,
+                        system_prompt: systemContext.val()
+                    })
+                });
+
+                const data = await response.json();
+                $(`#${thinkingId}`).remove();
+
+                if (data.task_id) {
+                    pollTaskResult(data.task_id);
+                } else if (data.response) {
+                    appendMessage('bot', data.response, data.message_id);
+                }
+            } catch (error) {
+                $(`#${thinkingId}`).remove();
+                appendMessage('bot', "Connection error. Please check your network.");
+            } finally {
+                sendBtn.prop('disabled', false);
+            }
+        }
+
+        function pollTaskResult(taskId) {
+            const thinkingId = showThinking();
+            const poller = setInterval(async () => {
+                try {
+                    const response = await fetch(`/api/status/${taskId}/`);
+                    const data = await response.json();
+
+                    if (data.status === 'SUCCESS') {
+                        clearInterval(poller);
+                        $(`#${thinkingId}`).remove();
+                        appendMessage('bot', data.result.response, data.result.message_id);
+                        sendBtn.prop('disabled', false);
+                    } else if (data.status === 'FAILURE') {
+                        clearInterval(poller);
+                        $(`#${thinkingId}`).remove();
+                        appendMessage('bot', "Error processing query: " + data.error);
+                        sendBtn.prop('disabled', false);
+                    }
+                } catch (e) {
+                    clearInterval(poller);
+                    $(`#${thinkingId}`).remove();
+                    appendMessage('bot', "Polling failed.");
+                    sendBtn.prop('disabled', false);
+                }
+            }, 2000);
+        }
+
+        async function handleFileUpload(files) {
+            if (!files.length) return;
+            const formData = new FormData();
+            for (let f of files) {
+                formData.append('files', f);
+                fileList.append(`<span class="file-item">${f.name} <i class="fas fa-check text-success"></i></span>`);
+            }
+
+            try {
+                const response = await fetch('/api/upload/', {
+                    method: 'POST',
+                    headers: { 'X-CSRFToken': getCookie('csrftoken') },
+                    body: formData
+                });
+                const data = await response.json();
+                if (data.status === 'success') {
+                    appendMessage('bot', "Files uploaded and indexed. You can now ask questions about them.");
+                } else {
+                    alert("Upload error: " + data.error);
+                }
+            } catch (err) {
+                alert("Upload failed.");
+            }
+        }
+
+        async function clearChat() {
+            if (!confirm("Reset entire conversation?")) return;
+            location.reload();
+        }
+
+        // Listeners
+        dropZone.click(() => fileInputSetup.click());
+        attachBtn.click(() => fileInputMain.click());
+        fileInputSetup.change(e => handleFileUpload(e.target.files));
+        fileInputMain.change(e => handleFileUpload(e.target.files));
+        sendBtn.click(sendMessage);
+        userInput.keypress(e => { if(e.key === 'Enter') sendMessage(); });
+        startChatBtn.click(() => { collapseSetup(); userInput.focus(); });
+
+        window.rateMessage = async (id, rating, el) => {
+            try {
+                await fetch('/api/rate/', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') },
+                    body: JSON.stringify({ message_id: id, rating: rating })
+                });
+                $(el).removeClass('far').addClass('fas').css('color', rating === 1 ? '#10b981' : '#ef4444');
+            } catch (e) {}
+        };
+    </script>
+</body>
+</html>
