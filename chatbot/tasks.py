@@ -139,41 +139,36 @@ def process_finance_query(user_input, chat_history_str, system_prompt=''):
             # Direct Q&A mode — just the question, nothing else
             user_content = user_input
         
-        # ── 3. Apply chat template ──
+        # ── 3. Apply chat template & tokenize ──
         messages = [{"role": "user", "content": user_content}]
-        prompt = tokenizer.apply_chat_template(messages, tokenize=False, add_generation_prompt=True)
+        inputs = tokenizer.apply_chat_template(
+            messages,
+            tokenize=True,
+            add_generation_prompt=True,
+            return_tensors="pt"
+        ).to(model.device)
         
-        # ── 4. Tokenize with strict limit ──
-        inputs = tokenizer(prompt, return_tensors="pt", truncation=True, max_length=2048)
-        inputs = {k: v.to(model.device) for k, v in inputs.items()}
-        
-        input_len = inputs["input_ids"].shape[1]
+        input_len = inputs.shape[-1]
         print(f"[FinanceParam] Input: {input_len} tokens | Query: '{user_input[:50]}'")
         
-        # ── 5. Generate ──
+        # ── 4. Generate ──
         with torch.no_grad():
             outputs = model.generate(
-                **inputs,
-                max_new_tokens=512,
+                inputs,
+                max_new_tokens=150,
                 do_sample=True,
-                temperature=0.7,
+                temperature=0.6,
+                repetition_penalty=1.2,
                 top_p=0.9,
-                top_k=50,
-                repetition_penalty=1.15,
-                eos_token_id=tokenizer.eos_token_id,
-                pad_token_id=tokenizer.pad_token_id or tokenizer.eos_token_id
+                pad_token_id=tokenizer.eos_token_id,
+                eos_token_id=tokenizer.eos_token_id
             )
         
-        # ── 6. Decode ──
-        full_output = tokenizer.decode(outputs[0], skip_special_tokens=False)
-        
-        if "<|assistant|>" in full_output:
-            bot_resp = full_output.split("<|assistant|>")[-1]
-            for tag in ["<|/assistant|>", "</s>", "<|user|>", "<|/user|>", "<pad>", "<s>"]:
-                bot_resp = bot_resp.replace(tag, "")
-            bot_resp = bot_resp.strip()
-        else:
-            bot_resp = tokenizer.decode(outputs[0], skip_special_tokens=True).strip()
+        # ── 5. Decode ──
+        bot_resp = tokenizer.decode(
+            outputs[0][inputs.shape[-1]:],
+            skip_special_tokens=True
+        ).strip()
         
         # ── 7. Quality check ──
         is_ok, reason = is_response_coherent(bot_resp)

@@ -457,7 +457,39 @@ If data is missing, mention limitations. Do not hallucinate financial figures.</
         }
 
         // Listeners
-        dropZone.click(() => fileInputSetup.click());
+        dropZone.on('click', function(e) {
+            if (e.target !== fileInputSetup[0]) {
+                fileInputSetup.click();
+            }
+        });
+
+        dropZone.on('dragover', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).css('border-color', 'var(--primary)');
+            $(this).css('background', 'rgba(99, 102, 241, 0.05)');
+        });
+
+        dropZone.on('dragleave', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).css('border-color', '');
+            $(this).css('background', '');
+        });
+
+        dropZone.on('drop', function(e) {
+            e.preventDefault();
+            e.stopPropagation();
+            $(this).css('border-color', '');
+            $(this).css('background', '');
+            
+            const files = e.originalEvent.dataTransfer.files;
+            if (files && files.length) {
+                fileInputSetup.prop('files', files);
+                handleFileUpload(files);
+            }
+        });
+
         attachBtn.click(() => fileInputMain.click());
         fileInputSetup.change(e => handleFileUpload(e.target.files));
         fileInputMain.change(e => handleFileUpload(e.target.files));
