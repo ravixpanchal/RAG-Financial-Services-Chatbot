@@ -6,6 +6,7 @@ offload/
 __pycache__/
 *.pyc
 *.safetensors
+FinanceParam/.cache/
 .DS_Store
 *.xlsx
 *.xls

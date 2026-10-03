@@ -1,0 +1,9 @@
+
+{{-'<s>'-}}
+{%- for message in messages -%}
+    {%- if message['role'] == 'user' -%}
+        {{'<|user|>' + message['content'].strip() + '<|/user|><|assistant|>'}}
+    {%- elif message['role'] == 'assistant' -%}
+        {% generation %}{{message['content'].strip()}}<|/assistant|></s>{% endgeneration %}
+    {%- endif -%}
+{%- endfor -%}
